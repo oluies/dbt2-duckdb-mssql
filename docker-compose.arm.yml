@@ -1,0 +1,79 @@
+# Apple Silicon / arm64 variant.
+#
+# The official mcr.microsoft.com/mssql/server:2022-latest image is
+# linux/amd64 only -- on an M-series Mac it runs via Rosetta emulation
+# (slow, occasionally flaky on Docker Desktop). This compose file swaps
+# in Azure SQL Edge, which Microsoft ships natively for linux/arm64.
+#
+# Caveats noted in README:
+#   * Azure SQL Edge has been announced end-of-support (Sept 2025);
+#     it's still the practical native-arm64 dev option in 2026, but is
+#     not for production.
+#   * azure-sql-edge:latest ships no sqlcmd at all, so the healthcheck
+#     is a TCP probe and `make db-init` runs on the host through DuckDB's
+#     mssql extension (scripts/db_init.py). `make db-shell` uses a
+#     host-installed sqlcmd on this platform.
+#   * The wire protocol is SQL Server-compatible, so dbt-duckdb's mssql
+#     ATTACH driver talks to it unchanged.
+#
+# Usage:
+#   make PLATFORM=arm-mac db-up
+#   make PLATFORM=arm-mac db-init
+#   make PLATFORM=arm-mac db-shell
+
+services:
+  mssql:
+    image: mcr.microsoft.com/azure-sql-edge:latest
+    platform: linux/arm64
+    container_name: holiday_loader_mssql
+    environment:
+      ACCEPT_EULA: "1"
+      MSSQL_SA_PASSWORD: ${SA_PASSWORD:?SA_PASSWORD must be set in .env}
+      SA_PASSWORD: ${SA_PASSWORD:?SA_PASSWORD must be set in .env}
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql_data:/var/opt/mssql
+    # No sqlcmd in the image, so this only checks that 1433 accepts TCP.
+    # Logins can lag a little behind; scripts/db_init.py retries for that.
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo > /dev/tcp/127.0.0.1/1433"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+
+  # Opt-in web SQL client / table browser for the marts (DBGate, MIT).
+  # NOT started by `make db-up`; bring it up with `make db-viewer`
+  # (docker-compose profile "tools"). Auto-connects to the mssql service
+  # as a connection named "Referensdata", landing in that database.
+  #
+  # USE_SSL + SSL_TRUST_CERTIFICATE mirror the dbt profile's
+  # Encrypt=yes;TrustServerCertificate=yes -- both default to false in
+  # DBGate, and SQL Server's self-signed dev cert is rejected by the
+  # tedious driver without them.
+  dbviewer:
+    image: dbgate/dbgate:latest
+    container_name: holiday_loader_dbviewer
+    profiles: ["tools"]
+    ports:
+      - "8085:3000"
+    environment:
+      CONNECTIONS: mssql1
+      LABEL_mssql1: Referensdata
+      SERVER_mssql1: mssql
+      PORT_mssql1: "1433"
+      USER_mssql1: sa
+      PASSWORD_mssql1: ${SA_PASSWORD:?SA_PASSWORD must be set in .env}
+      ENGINE_mssql1: mssql@dbgate-plugin-mssql
+      DATABASE_mssql1: Referensdata
+      USE_SSL_mssql1: "1"
+      SSL_TRUST_CERTIFICATE_mssql1: "1"
+    depends_on:
+      - mssql
+    restart: unless-stopped
+
+volumes:
+  mssql_data:
+    name: holiday_loader_mssql_data

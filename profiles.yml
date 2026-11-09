@@ -1,0 +1,8 @@
+holiday_loader:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: holiday_loader.duckdb
+      schema: main
+      threads: 4

@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays: catches a new mssql extension build or dbt behaviour
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Only used for the throwaway SQL Server service started in this workflow.
+  SA_PASSWORD: CI_Str0ng_P@ssword_2026!
+  AZURE_CA_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
+  DBT_PROFILES_DIR: ${{ github.workspace }}
+
+jobs:
+  build:
+    name: dbt 2 build + test against SQL Server 2022
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Write .env for docker compose + Make
+        run: |
+          cat > .env <<ENV
+          SA_PASSWORD=${SA_PASSWORD}
+          AZURE_CA_CERT_FILE=${AZURE_CA_CERT_FILE}
+          ENV
+
+      - name: Start SQL Server
+        run: make db-up
+
+      - name: Install dbt 2
+        run: pip install -r requirements.txt
+
+      - name: Create Referensdata database + azuredl schema
+        run: make db-init
+
+      - run: dbt --version
+      - run: dbt deps
+      - run: dbt seed
+      - run: dbt run
+      - run: dbt test
+
+      - name: Dump SQL Server logs on failure
+        if: failure()
+        run: docker compose logs mssql --no-color --tail 200
+
+      - name: Tear down
+        if: always()
+        run: make db-down || true

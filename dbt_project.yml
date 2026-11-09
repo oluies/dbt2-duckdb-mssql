@@ -1,0 +1,96 @@
+name: 'holiday_loader'
+version: '1.0.0'
+config-version: 2
+
+profile: 'holiday_loader'
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+analysis-paths: ["analyses"]
+snapshot-paths: ["snapshots"]
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# Country codes whose holidays are loaded into fct_holiday_calendar.
+# dim_country must contain at least these codes.
+#
+# calendar_start_date / calendar_end_date bound BOTH the date spine
+# (and thus dim_date) AND the holiday staging filter, so the
+# fct_holiday_calendar -> dim_date relationship test never fails on
+# pre-spine or post-spine rows. End is half-open (exclusive), matching
+# dbt_utils.date_spine.
+vars:
+  holiday_country_codes: ['SE', 'NO', 'DK', 'FI', 'GB', 'US']
+  calendar_start_date: '2015-01-01'
+  calendar_end_date: '2036-01-01'
+  # Toggle for the change point example (models/changepoint/). Off because
+  # it needs the cpt extension, and dbt 2 cannot load an unsigned extension
+  # yet: see README, "What does not work yet".
+  with_changepoint: false
+  # PELT penalty ('bic', 'mbic', 'aic' or a number) and the shortest
+  # regime, in trading days, that fct_fx_regimes may report.
+  cpt_penalty: 'mbic'
+  cpt_min_regime_days: 20
+
+# Attach SQL Server (and load the extensions) for every command. Commands that
+# create schemas need it earlier, so duckdb__create_schema runs it as well; see
+# macros/duckdb_setup.sql.
+on-run-start:
+  - "{{ duckdb_setup() }}"
+
+models:
+  holiday_loader:
+    +database: Referensdata
+    +schema: azuredl
+    +materialized: table
+    staging:
+      stg_public_holidays:
+        +materialized: table
+      stg_date_spine:
+        +materialized: ephemeral
+    marts:
+      +materialized: table
+    changepoint:
+      +enabled: "{{ var('with_changepoint', false) }}"
+      +tags: ['changepoint']
+      fct_fx_regimes:
+        +pre-hook: "{{ load_cpt() }}"
+
+seeds:
+  holiday_loader:
+    +database: Referensdata
+    +schema: azuredl
+    dim_country:
+      +column_types:
+        country_code: varchar(2)
+        country_name: varchar(100)
+    exchange_holidays:
+      +column_types:
+        calendar_date: date
+        exchange_code: varchar(8)
+        exchange_name: varchar(100)
+        country_code: varchar(2)
+        holiday_name: varchar(200)
+    # Frozen reference values for the dim_date week-number regression
+    # test (tests/assert_dim_date_week_numbers.sql).
+    expected_week_numbers:
+      +column_types:
+        date_day: date
+        iso_week_number: integer
+        iso_year: integer
+        iso_year_week: varchar(8)
+        us_week_number: integer
+        note: varchar(100)
+    # Riksbank daily SEK/EUR fixing, frozen so CI does not call the
+    # rate-limited API. Refresh with scripts/fetch_riksbank_fx.py.
+    riksbank_sekeur:
+      +enabled: "{{ var('with_changepoint', false) }}"
+      +tags: ['changepoint']
+      +column_types:
+        rate_date: date
+        sek_per_eur: decimal(10,4)
+flags:
+  require_generic_test_arguments_property: true

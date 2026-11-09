@@ -1,0 +1,56 @@
+services:
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2025-latest
+    container_name: holiday_loader_mssql
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${SA_PASSWORD:?SA_PASSWORD must be set in .env}
+      SA_PASSWORD: ${SA_PASSWORD:?SA_PASSWORD must be set in .env}
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql_data:/var/opt/mssql
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$$MSSQL_SA_PASSWORD" -C -Q "SELECT 1" -b -l 5 || exit 1
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+
+  # Opt-in web SQL client / table browser for the marts (DBGate, MIT).
+  # NOT started by `make db-up`; bring it up with `make db-viewer`
+  # (docker-compose profile "tools"). Auto-connects to the mssql service
+  # as a connection named "Referensdata", landing in that database.
+  #
+  # USE_SSL + SSL_TRUST_CERTIFICATE mirror the dbt profile's
+  # Encrypt=yes;TrustServerCertificate=yes -- both default to false in
+  # DBGate, and SQL Server's self-signed dev cert is rejected by the
+  # tedious driver without them.
+  dbviewer:
+    image: dbgate/dbgate:latest
+    container_name: holiday_loader_dbviewer
+    profiles: ["tools"]
+    ports:
+      - "8085:3000"
+    environment:
+      CONNECTIONS: mssql1
+      LABEL_mssql1: Referensdata
+      SERVER_mssql1: mssql
+      PORT_mssql1: "1433"
+      USER_mssql1: sa
+      PASSWORD_mssql1: ${SA_PASSWORD:?SA_PASSWORD must be set in .env}
+      ENGINE_mssql1: mssql@dbgate-plugin-mssql
+      DATABASE_mssql1: Referensdata
+      USE_SSL_mssql1: "1"
+      SSL_TRUST_CERTIFICATE_mssql1: "1"
+    depends_on:
+      - mssql
+    restart: unless-stopped
+
+volumes:
+  mssql_data:
+    name: holiday_loader_mssql_data

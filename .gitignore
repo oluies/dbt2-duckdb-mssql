@@ -1,0 +1,34 @@
+# Secrets
+.env
+
+# DuckDB
+*.duckdb
+*.duckdb.wal
+*.duckdb.tmp
+
+# dbt
+target/
+dbt_packages/
+logs/
+package-lock.yml
+.user.yml
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Local Claude Code session state
+.claude/
+
+# Scala.js app (web/): Mill output and the assembled site
+web/out/
+web/dist/
+dbt_internal_packages/
