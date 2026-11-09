@@ -32,6 +32,20 @@ Models then write to SQL Server with `+database: Referensdata`, as they did on d
 - Generic test arguments moved under `arguments:`, and the deprecated `target-path` is gone. Both were done by `dbt-autofix`, which needs a Python its dependencies support (3.12 worked; 3.15 did not).
 - The Elementary package is left out, because it is not on the list of packages dbt Labs says work on v2.
 
+## Speed compared with dbt 1
+
+On this project, `dbt-oss` 2.0.11 ran a full build into SQL Server about 2.3 times as fast as dbt-core 1.12.3 with dbt-duckdb 1.11.1.
+
+| Task | dbt 1.12.3 | dbt-oss 2.0.11 | Speed-up |
+| --- | --- | --- | --- |
+| `dbt build`, including the change point models | 7.04 s | 3.00 s | 2.3x |
+| `dbt parse`, this project | 4.50 s | 0.42 s | 10.7x |
+| `dbt parse`, synthetic project of 2,000 chained models | 5.78 s | 0.88 s | 6.6x |
+
+These are medians of 5 runs (7 for parsing this project), measured in November 2026 on one Apple Silicon Mac against local Azure SQL Edge, with 4 threads in the real project and alternating which version ran first. Both versions used DuckDB v2.0.0. dbt 1 parsed with `--no-partial-parse` and an empty `target/`, and dbt 2 parsed with an empty `target/`.
+
+Most of the time saved is startup and parsing, since the work inside DuckDB and SQL Server takes about the same on either version. The dbt 1 project also included the disabled Elementary package, which adds about 300 SQL files to parse, so the synthetic project is the cleaner parsing comparison. The build was not measured on Linux, where dbt 2 embeds DuckDB v1.5.4.
+
 ## What does not work yet
 
 **The embedded DuckDB depends on the platform.** `dbt-oss` 2.0.11 uses DuckDB v2.0.0 on macOS (arm64) and v1.5.4 on Linux (arm64 and amd64). Check yours with `select version()` in a model.
