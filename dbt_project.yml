@@ -26,10 +26,10 @@ vars:
   holiday_country_codes: ['SE', 'NO', 'DK', 'FI', 'GB', 'US']
   calendar_start_date: '2015-01-01'
   calendar_end_date: '2036-01-01'
-  # Toggle for the change point example (models/changepoint/). Off because
-  # it needs the cpt extension, and dbt 2 cannot load an unsigned extension
-  # yet: see README, "What does not work yet".
-  with_changepoint: false
+  # The change point example (models/changepoint/): SEK/EUR volatility
+  # regimes found by PELT, with the cpt extension from the DuckDB community
+  # repository. Turn it off with --vars '{with_changepoint: false}'.
+  with_changepoint: true
   # PELT penalty ('bic', 'mbic', 'aic' or a number) and the shortest
   # regime, in trading days, that fct_fx_regimes may report.
   cpt_penalty: 'mbic'

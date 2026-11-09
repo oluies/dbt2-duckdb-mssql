@@ -1,8 +1,8 @@
 # dbt 2 on SQL Server through DuckDB
 
-dbt v2 has no SQL Server adapter, but it has DuckDB built in. DuckDB's community [`mssql` extension](https://github.com/hugr-lab/mssql-extension) can write to SQL Server. This repository tests whether the two can be combined, using a real project: the date dimension, holiday calendar and exchange calendar from [dbt-duckdb-trading-calendar](https://github.com/oluies/dbt-duckdb-trading-calendar).
+dbt v2 has no SQL Server adapter, but it has DuckDB built in. DuckDB's community [`mssql` extension](https://github.com/hugr-lab/mssql-extension) can write to SQL Server. This repository tests whether the two can be combined, using a real project: the date dimension, holiday and exchange calendars, and the SEK/EUR change point example from [dbt-duckdb-trading-calendar](https://github.com/oluies/dbt-duckdb-trading-calendar).
 
-They can. With `dbt-oss` 2.0.11 and its embedded DuckDB v2.0.0, all seeds and models build into SQL Server and all 69 data tests pass. This is an experiment and is not supported by dbt Labs or Microsoft.
+They can. With `dbt-oss` 2.0.11 and its embedded DuckDB v2.0.0, all seeds and models build into SQL Server and all data tests pass. This is an experiment and is not supported by dbt Labs or Microsoft.
 
 | Feature | Result on dbt 2 |
 | --- | --- |
@@ -11,7 +11,9 @@ They can. With `dbt-oss` 2.0.11 and its embedded DuckDB v2.0.0, all seeds and mo
 | Ephemeral models, `dbt_utils.date_spine` | Works |
 | Reading Parquet from Azure with the `azure` extension | Works |
 | Default static analysis on DuckDB SQL | No objections |
-| Loading an unsigned extension (`cpt`) | Does not work; see below |
+| Signed community extensions (`mssql`, `cpt`), installed from macros | Works |
+| Change point detection with `cpt` | Works; the 8 regimes match the dbt 1 build |
+| Unsigned, locally built extensions | Does not work; see below |
 
 ## The workaround
 
@@ -32,7 +34,7 @@ Models then write to SQL Server with `+database: Referensdata`, as they did on d
 
 ## What does not work yet
 
-The change point models in `models/changepoint/` are copied over but switched off. They need the [`cpt`](https://github.com/hugr-lab/duck-changepoint) extension, which is a local unsigned build. DuckDB only accepts `allow_unsigned_extensions` at startup. dbt 2 applies its `settings:` after startup, so DuckDB rejects it, and no other profile key tried so far takes effect. Publishing `cpt` as a signed community extension would remove the problem.
+Unsigned extensions cannot be loaded. DuckDB only accepts `allow_unsigned_extensions` at startup, dbt 2 applies its `settings:` after startup so DuckDB rejects it, and no other profile key tried so far takes effect. This project does not need one: [`cpt`](https://github.com/hugr-lab/duck-changepoint) is a signed community extension, installed by [`macros/load_cpt.sql`](macros/load_cpt.sql).
 
 Azure SQL Edge (Apple Silicon) was used for local testing, and SQL Server 2022 is used in CI.
 
