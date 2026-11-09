@@ -11,8 +11,8 @@
   {% do run_query("LOAD httpfs") %}
   {% do run_query("INSTALL azure") %}
   {% do run_query("LOAD azure") %}
-  {% do run_query("SET azure_transport_option_type = 'curl'") %}
-  {% do run_query("SET ca_cert_file = '" ~ env_var('AZURE_CA_CERT_FILE', '/etc/ssl/certs/ca-certificates.crt') ~ "'") %}
+  {% do run_query("SET GLOBAL azure_transport_option_type = 'curl'") %}
+  {% do run_query("SET GLOBAL ca_cert_file = '" ~ env_var('AZURE_CA_CERT_FILE', '/etc/ssl/certs/ca-certificates.crt') ~ "'") %}
   {% do run_query("CREATE OR REPLACE SECRET azure_open (TYPE azure, PROVIDER config, ACCOUNT_NAME 'azureopendatastorage')") %}
   {% do run_query("ATTACH IF NOT EXISTS 'Server=localhost,1433;Database=Referensdata;UID=sa;PWD=" ~ env_var('SA_PASSWORD') ~ ";Encrypt=yes;TrustServerCertificate=yes' AS Referensdata (TYPE mssql)") %}
 {% endmacro %}

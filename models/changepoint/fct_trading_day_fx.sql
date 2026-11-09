@@ -33,7 +33,9 @@ weekdays as (
 
     select d.date_key, d.date_day, d.year_number
     from {{ ref('dim_date') }} as d
-    where not d.is_weekend
+    -- Not `not d.is_weekend`: DuckDB can push that filter down, and SQL Server
+    -- rejects NOT on a BIT column.
+    where d.iso_day_of_week < 6
       and d.date_day between (select min(rate_date) from fx)
                          and (select max(rate_date) from fx)
 
