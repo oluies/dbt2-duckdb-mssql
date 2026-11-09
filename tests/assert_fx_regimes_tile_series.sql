@@ -1,4 +1,4 @@
-{{ config(tags=['changepoint']) }}
+{{ config(enabled=var('with_changepoint', false), tags=['changepoint']) }}
 
 -- The regimes partition the return series: the first starts on the first
 -- return, each next one starts on the fixing day after the previous end,

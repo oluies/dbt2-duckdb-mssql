@@ -1,4 +1,4 @@
-{{ config(tags=['changepoint']) }}
+{{ config(enabled=var('with_changepoint', false), tags=['changepoint']) }}
 
 -- Domain check on the detector: days of known FX stress must fall in a
 -- regime whose volatility is at least twice the median regime's. A

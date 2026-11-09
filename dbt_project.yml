@@ -26,8 +26,12 @@ vars:
   holiday_country_codes: ['SE', 'NO', 'DK', 'FI', 'GB', 'US']
   calendar_start_date: '2015-01-01'
   calendar_end_date: '2036-01-01'
-  # The change point example (models/changepoint/) uses the cpt extension
-  # from the DuckDB community repository.
+  # The change point example (models/changepoint/) needs the cpt extension,
+  # which is built for DuckDB 2.0. dbt-oss 2.0.11 embeds DuckDB 2.0.0 on macOS
+  # but 1.5.4 on Linux, so it is off by default. On macOS, run with
+  # --vars '{with_changepoint: true}'. The value has to come from the command
+  # line: dbt 2 does not apply this default when resolving +enabled below.
+  with_changepoint: false
   # PELT penalty ('bic', 'mbic', 'aic' or a number) and the shortest
   # regime, in trading days, that fct_fx_regimes may report.
   cpt_penalty: 'mbic'
@@ -52,6 +56,7 @@ models:
     marts:
       +materialized: table
     changepoint:
+      +enabled: "{{ var('with_changepoint', false) }}"
       +tags: ['changepoint']
       fct_fx_regimes:
         +pre-hook: "{{ load_cpt() }}"
@@ -84,6 +89,7 @@ seeds:
     # Riksbank daily SEK/EUR fixing, frozen so CI does not call the
     # rate-limited API. Refresh with scripts/fetch_riksbank_fx.py.
     riksbank_sekeur:
+      +enabled: "{{ var('with_changepoint', false) }}"
       +tags: ['changepoint']
       +column_types:
         rate_date: date

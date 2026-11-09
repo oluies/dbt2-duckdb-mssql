@@ -2,7 +2,7 @@
 
 dbt v2 has no SQL Server adapter, but it has DuckDB built in. DuckDB's community [`mssql` extension](https://github.com/hugr-lab/mssql-extension) can write to SQL Server. This repository tests whether the two can be combined, using a real project: the date dimension, holiday and exchange calendars, and the SEK/EUR change point example from [dbt-duckdb-trading-calendar](https://github.com/oluies/dbt-duckdb-trading-calendar).
 
-They can. With `dbt-oss` 2.0.11 and its embedded DuckDB v2.0.0, all seeds and models build into SQL Server and all data tests pass. This is an experiment and is not supported by dbt Labs or Microsoft.
+They can. With `dbt-oss` 2.0.11, all seeds and models build into SQL Server and all 69 data tests pass, in CI against SQL Server 2022 and locally against Azure SQL Edge. This is an experiment and is not supported by dbt Labs or Microsoft.
 
 | Feature | Result on dbt 2 |
 | --- | --- |
@@ -12,7 +12,7 @@ They can. With `dbt-oss` 2.0.11 and its embedded DuckDB v2.0.0, all seeds and mo
 | Reading Parquet from Azure with the `azure` extension | Works |
 | Default static analysis on DuckDB SQL | No objections |
 | Signed community extensions (`mssql`, `cpt`), installed from macros | Works |
-| Change point detection with `cpt` | Works; the 8 regimes match the dbt 1 build |
+| Change point detection with `cpt` | macOS only; see below |
 | Unsigned, locally built extensions | Does not work; see below |
 
 ## The workaround
@@ -34,7 +34,13 @@ Models then write to SQL Server with `+database: Referensdata`, as they did on d
 
 ## What does not work yet
 
-Unsigned extensions cannot be loaded. DuckDB only accepts `allow_unsigned_extensions` at startup, dbt 2 applies its `settings:` after startup so DuckDB rejects it, and no other profile key tried so far takes effect. This project does not need one: [`cpt`](https://github.com/hugr-lab/duck-changepoint) is a signed community extension, installed by [`macros/load_cpt.sql`](macros/load_cpt.sql).
+**The embedded DuckDB depends on the platform.** `dbt-oss` 2.0.11 uses DuckDB v2.0.0 on macOS (arm64) and v1.5.4 on Linux (arm64 and amd64). Check yours with `select version()` in a model.
+
+**The change point models run on macOS only.** They use [`cpt`](https://github.com/hugr-lab/duck-changepoint), a signed community extension built for DuckDB 2.0, which cannot load on 1.5.4. They are off by default, so CI (Linux) skips them. On macOS, `dbt build --vars '{with_changepoint: true}'` builds them and passes all 94 tests, with the same 8 regimes as the dbt 1 build. The value has to be passed on the command line, because dbt 2 does not apply a `vars:` default from `dbt_project.yml` when resolving `+enabled`.
+
+**On Linux, filters on `BIT` columns can fail.** `where not d.is_weekend` was pushed down to SQL Server 2022 and rejected, so `fct_trading_day_fx` filters on `iso_day_of_week` instead.
+
+**Unsigned extensions cannot be loaded.** DuckDB only accepts `allow_unsigned_extensions` at startup, dbt 2 applies its `settings:` after startup so DuckDB rejects it, and no other profile key tried so far takes effect.
 
 Azure SQL Edge (Apple Silicon) was used for local testing, and SQL Server 2022 is used in CI.
 

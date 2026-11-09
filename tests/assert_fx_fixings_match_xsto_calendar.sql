@@ -1,4 +1,4 @@
-{{ config(tags=['changepoint']) }}
+{{ config(enabled=var('with_changepoint', false), tags=['changepoint']) }}
 
 -- Within years the exchange_holidays seed covers, the Riksbank publishes
 -- a SEK/EUR fixing exactly on Nasdaq Stockholm trading days. A row here
