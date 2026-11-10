@@ -19,8 +19,13 @@
       and duckdb_secrets() shows it redacted. getvariable() rather than the
       $name shorthand, which is new in DuckDB 2.0: dbt 2 embeds 1.5.4 on Linux.
       Both statements go in one run_query, because dbt 2 may run separate calls
-      on separate connections, and a session variable does not carry over. -#}
-  {% do run_query("SET VARIABLE sa_password = '" ~ env_var('SA_PASSWORD') | replace("'", "''") ~ "'; CREATE OR REPLACE SECRET referensdata (TYPE mssql, host 'localhost', port " ~ env_var('MSSQL_PORT', '1433') ~ ", database 'Referensdata', user 'sa', password getvariable('sa_password'), trust_server_certificate true)") %}
+      on separate connections, and a session variable does not carry over.
+      The mssql build for DuckDB 2.0 verifies the server certificate and needs
+      trust_server_certificate for the self-signed one in the container; the
+      older build for 1.5.4 does not verify it and rejects that option. -#}
+  {% set duckdb_version = run_query("select version()").rows[0][0] %}
+  {% set trust = "" if duckdb_version.startswith("v1.") else ", trust_server_certificate true" %}
+  {% do run_query("SET VARIABLE sa_password = '" ~ env_var('SA_PASSWORD') | replace("'", "''") ~ "'; CREATE OR REPLACE SECRET referensdata (TYPE mssql, host 'localhost', port " ~ env_var('MSSQL_PORT', '1433') ~ ", database 'Referensdata', user 'sa', password getvariable('sa_password')" ~ trust ~ ")") %}
   {% do run_query("ATTACH IF NOT EXISTS '' AS Referensdata (TYPE mssql, SECRET referensdata)") %}
 {% endmacro %}
 
