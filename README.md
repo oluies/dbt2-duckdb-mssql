@@ -58,6 +58,14 @@ Most of the time saved is startup and parsing, since the work inside DuckDB and 
 
 Azure SQL Edge (Apple Silicon) was used for local testing, and SQL Server 2022 is used in CI.
 
+## dbt issues
+
+These issues in [dbt-labs/dbt](https://github.com/dbt-labs/dbt) cover the limits above. The workaround can go once the first is fixed.
+
+- [#17105](https://github.com/dbt-labs/dbt/issues/17105): `extensions` cannot install from the community repository. This is why the setup lives in a macro.
+- [#16897](https://github.com/dbt-labs/dbt/issues/16897): support DuckDB 2. The embedded DuckDB is v1.5.4 on Linux, so `cpt` cannot load there.
+- [#16926](https://github.com/dbt-labs/dbt/issues/16926): expose connect-time `config_options` in `profiles.yml`. Without it, `allow_unsigned_extensions` cannot be set.
+
 ## Running it
 
 Needs Docker and Python 3.10 or later.
