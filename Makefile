@@ -17,7 +17,7 @@ PLATFORM ?= default
 ifeq ($(PLATFORM),arm-mac)
 COMPOSE_FILE := docker-compose.arm.yml
 # azure-sql-edge:latest ships no sqlcmd, so db-shell needs one on the host.
-DB_SHELL     := sqlcmd -S localhost,1433
+DB_SHELL     := sqlcmd -S localhost,$${MSSQL_PORT:-1433}
 else
 COMPOSE_FILE := docker-compose.yml
 DB_SHELL     := docker compose -f $(COMPOSE_FILE) exec mssql /opt/mssql-tools18/bin/sqlcmd -S localhost

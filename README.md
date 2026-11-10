@@ -19,7 +19,7 @@ They can. With `dbt-oss` 2.0.11, all seeds and models build into SQL Server and 
 
 dbt 2's profile cannot set the extension up. `extensions:` accepts only plain names, so it installs `mssql` from the core repository and fails. The project does the work in [`macros/duckdb_setup.sql`](macros/duckdb_setup.sql) instead:
 
-- `duckdb_setup()` runs `INSTALL mssql FROM community`, `LOAD mssql` and `ATTACH ... (TYPE mssql)`.
+- `duckdb_setup()` runs `INSTALL mssql FROM community` and `LOAD mssql`, puts the password in a session variable and from there into an mssql secret, and attaches with `ATTACH '' ... (TYPE mssql, SECRET referensdata)`. The password is never part of a connection string.
 - dbt 2 creates schemas before `on-run-start`, so the macro overrides `duckdb__create_schema` to attach SQL Server first.
 - `on-run-start` calls it too, for commands such as `dbt test` that create no schemas.
 
@@ -82,4 +82,4 @@ set -a; source .env; set +a   # dbt reads SA_PASSWORD from the environment
 dbt deps && dbt seed && dbt run && dbt test
 ```
 
-On macOS, set `AZURE_CA_CERT_FILE=/etc/ssl/cert.pem` in `.env`.
+On macOS, set `AZURE_CA_CERT_FILE=/etc/ssl/cert.pem` in `.env`. If port 1433 is taken, set `MSSQL_PORT` (in `.env` or the environment) and the container, `db-init` and dbt all use that port.
