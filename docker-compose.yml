@@ -8,7 +8,7 @@ services:
       MSSQL_SA_PASSWORD: ${SA_PASSWORD:?SA_PASSWORD must be set in .env}
       SA_PASSWORD: ${SA_PASSWORD:?SA_PASSWORD must be set in .env}
     ports:
-      - "1433:1433"
+      - "${MSSQL_PORT:-1433}:1433"
     volumes:
       - mssql_data:/var/opt/mssql
     healthcheck:

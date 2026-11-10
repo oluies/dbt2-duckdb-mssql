@@ -14,7 +14,14 @@
   {% do run_query("SET GLOBAL azure_transport_option_type = 'curl'") %}
   {% do run_query("SET GLOBAL ca_cert_file = '" ~ env_var('AZURE_CA_CERT_FILE', '/etc/ssl/certs/ca-certificates.crt') ~ "'") %}
   {% do run_query("CREATE OR REPLACE SECRET azure_open (TYPE azure, PROVIDER config, ACCOUNT_NAME 'azureopendatastorage')") %}
-  {% do run_query("ATTACH IF NOT EXISTS 'Server=localhost,1433;Database=Referensdata;UID=sa;PWD=" ~ env_var('SA_PASSWORD') ~ ";Encrypt=yes;TrustServerCertificate=yes' AS Referensdata (TYPE mssql)") %}
+  {#- The password goes into a variable and from there into an mssql secret,
+      so it is never part of a connection string, where a ';' would break it,
+      and duckdb_secrets() shows it redacted. getvariable() rather than the
+      $name shorthand, which is new in DuckDB 2.0: dbt 2 embeds 1.5.4 on Linux.
+      Both statements go in one run_query, because dbt 2 may run separate calls
+      on separate connections, and a session variable does not carry over. -#}
+  {% do run_query("SET VARIABLE sa_password = '" ~ env_var('SA_PASSWORD') | replace("'", "''") ~ "'; CREATE OR REPLACE SECRET referensdata (TYPE mssql, host 'localhost', port " ~ env_var('MSSQL_PORT', '1433') ~ ", database 'Referensdata', user 'sa', password getvariable('sa_password'), trust_server_certificate true)") %}
+  {% do run_query("ATTACH IF NOT EXISTS '' AS Referensdata (TYPE mssql, SECRET referensdata)") %}
 {% endmacro %}
 
 {#-
