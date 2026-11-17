@@ -18,7 +18,7 @@ import time
 
 import duckdb
 
-SERVER = "localhost,1433"
+SERVER = f"localhost,{os.environ.get('MSSQL_PORT', '1433')}"
 # The port opens before SQL Server accepts logins (the arm healthcheck is a
 # TCP probe), so keep retrying the first ATTACH for a while.
 CONNECT_TIMEOUT_S = 120
